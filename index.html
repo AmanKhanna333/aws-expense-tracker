@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Expenses</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,600;9..144,1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6/dist/amazon-cognito-identity.min.js"></script>
+<style>
+  :root{
+    --bg:#1a1510;
+    --surface:#221e17;
+    --surface2:#2a2419;
+    --border:#35301f;
+    --border2:#4a4228;
+    --text:#f0e8d8;
+    --muted:#8a7d65;
+    --dim:#4a4030;
+    --mint:#52c98b;
+    --mint-dim:rgba(82,201,139,0.10);
+    --mint-mid:rgba(82,201,139,0.18);
+    --amber:#f0a500;
+    --amber-dim:rgba(240,165,0,0.10);
+    --err:#e05c5c;
+    --food:#ff7043;
+    --transport:#42a5f5;
+    --shopping:#ab47bc;
+    --bills:#ef5350;
+    --entertainment:#26c6da;
+    --other:#78909c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:15px;line-height:1.6;min-height:100vh;}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+
+  /* ── AUTH ── */
+  .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .auth-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 36px;}
+  .auth-logo{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:600;color:var(--text);margin-bottom:6px;}
+  .auth-logo span{color:var(--mint);}
+  .auth-sub{font-size:0.85rem;color:var(--muted);margin-bottom:28px;}
+  .auth-tabs{display:flex;gap:8px;margin-bottom:24px;}
+  .auth-tab{flex:1;padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'Inter',sans-serif;font-size:0.83rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+  .auth-tab.active{background:var(--mint-dim);border-color:var(--mint);color:var(--mint);}
+  .auth-form{display:flex;flex-direction:column;gap:12px;}
+  .auth-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:0.92rem;outline:none;transition:border-color 0.2s;width:100%;}
+  .auth-input:focus{border-color:var(--mint);}
+  .auth-input::placeholder{color:var(--dim);}
+  .auth-btn{background:var(--mint);color:#0d1a12;border:none;border-radius:10px;padding:13px;font-family:'Inter',sans-serif;font-size:0.92rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+  .auth-btn:hover{opacity:0.88;transform:translateY(-1px);}
+  .auth-msg{font-size:0.83rem;min-height:1.2em;padding:2px 0;}
+  .auth-msg.error{color:var(--err);}
+  .auth-msg.ok{color:var(--mint);}
+  .hidden{display:none!important;}
+
+  /* ── APP LAYOUT ── */
+  .app{max-width:860px;margin:0 auto;padding:40px 24px 80px;}
+
+  /* ── HEADER ── */
+  .app-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;}
+  .app-title{font-family:'Fraunces',serif;font-size:2rem;font-weight:600;color:var(--text);}
+  .app-title span{color:var(--mint);font-style:italic;}
+  .app-date{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--muted);margin-top:4px;}
+  .signout-btn{background:none;border:1px solid var(--border2);color:var(--muted);padding:7px 14px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .signout-btn:hover{border-color:var(--err);color:var(--err);}
+
+  /* ── SUMMARY CARDS ── */
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:28px;}
+  .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 20px 16px;transition:all 0.2s;}
+  .summary-card:hover{border-color:var(--border2);transform:translateY(-2px);}
+  .summary-label{font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;}
+  .summary-value{font-family:'Fraunces',serif;font-size:1.7rem;font-weight:600;color:var(--text);line-height:1;}
+  .summary-value.accent{color:var(--mint);}
+  .summary-value.amber{color:var(--amber);}
+  .summary-sub{font-size:0.75rem;color:var(--muted);margin-top:6px;}
+
+  /* ── CATEGORY BREAKDOWN ── */
+  .breakdown{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin-bottom:24px;}
+  .breakdown-title{font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:14px;}
+  .breakdown-bars{display:flex;flex-direction:column;gap:10px;}
+  .breakdown-row{display:flex;align-items:center;gap:12px;}
+  .breakdown-cat{font-size:0.8rem;color:var(--text);width:100px;flex-shrink:0;}
+  .breakdown-bar-wrap{flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;}
+  .breakdown-bar{height:100%;border-radius:4px;transition:width 0.6s ease;}
+  .breakdown-amt{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--muted);width:80px;text-align:right;flex-shrink:0;}
+
+  /* ── ADD EXPENSE FORM ── */
+  .add-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 24px 20px;margin-bottom:24px;}
+  .add-title{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--text);margin-bottom:18px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .form-field{display:flex;flex-direction:column;gap:6px;}
+  .form-label{font-size:0.75rem;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:0.04em;text-transform:uppercase;}
+  .form-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:'Inter',sans-serif;font-size:0.92rem;outline:none;transition:border-color 0.2s;width:100%;}
+  .form-input:focus{border-color:var(--mint);}
+  .form-input::placeholder{color:var(--dim);}
+  .category-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .cat-pill{padding:7px 16px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);font-size:0.82rem;cursor:pointer;transition:all 0.18s;font-family:'Inter',sans-serif;font-weight:500;}
+  .cat-pill:hover{transform:translateY(-1px);}
+  .cat-pill.selected{color:#fff;border-color:transparent;}
+  .cat-pill[data-cat="Food"].selected{background:var(--food);}
+  .cat-pill[data-cat="Transport"].selected{background:var(--transport);}
+  .cat-pill[data-cat="Shopping"].selected{background:var(--shopping);}
+  .cat-pill[data-cat="Bills"].selected{background:var(--bills);}
+  .cat-pill[data-cat="Entertainment"].selected{background:var(--entertainment);}
+  .cat-pill[data-cat="Other"].selected{background:var(--other);}
+  .add-btn{width:100%;background:var(--mint);color:#0d1a12;border:none;border-radius:12px;padding:13px;font-family:'Inter',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .add-btn:hover{opacity:0.88;transform:translateY(-1px);box-shadow:0 6px 20px rgba(82,201,139,0.25);}
+  .add-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+  /* ── EXPENSE LIST ── */
+  .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .list-title{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--text);}
+  .list-count{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--muted);}
+  .expense-list{display:flex;flex-direction:column;gap:10px;}
+  .expense-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;align-items:center;gap:14px;transition:all 0.2s;animation:slideIn 0.3s ease;}
+  @keyframes slideIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  .expense-item:hover{border-color:var(--border2);transform:translateX(3px);}
+  .expense-cat-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .expense-info{flex:1;}
+  .expense-note{font-size:0.92rem;color:var(--text);font-weight:500;}
+  .expense-meta{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);margin-top:3px;}
+  .expense-amount{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:600;color:var(--text);}
+  .expense-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:1rem;padding:4px 6px;border-radius:6px;transition:all 0.18s;opacity:0;}
+  .expense-item:hover .expense-del{opacity:1;}
+  .expense-del:hover{color:var(--err);background:rgba(224,92,92,0.1);}
+  .empty-state{text-align:center;padding:48px 24px;color:var(--muted);}
+  .empty-emoji{font-size:2.5rem;margin-bottom:12px;}
+  .empty-text{font-family:'Fraunces',serif;font-size:1.1rem;font-style:italic;color:var(--muted);}
+  .empty-sub{font-size:0.82rem;color:var(--dim);margin-top:6px;}
+
+  /* ── CELEBRATION ── */
+  .celebration{position:fixed;top:20px;right:20px;background:var(--mint);color:#0d1a12;padding:12px 20px;border-radius:12px;font-weight:600;font-size:0.88rem;opacity:0;transform:translateY(-10px);transition:all 0.3s;z-index:999;pointer-events:none;}
+  .celebration.show{opacity:1;transform:translateY(0);}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:600px){
+    .summary-grid{grid-template-columns:1fr 1fr;}
+    .form-row{grid-template-columns:1fr;}
+    .app{padding:24px 16px 60px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- CELEBRATION TOAST -->
+<div class="celebration" id="celebration">✓ Expense logged!</div>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">Kharcha<span>.</span></div>
+    <div class="auth-sub">Your personal expense tracker</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabSignIn">Sign in</button>
+      <button class="auth-tab" id="tabSignUp">Sign up</button>
+    </div>
+
+    <form class="auth-form" id="signInForm">
+      <input type="email" class="auth-input" id="siEmail" placeholder="Email" required autocomplete="email">
+      <input type="password" class="auth-input" id="siPassword" placeholder="Password" required autocomplete="current-password">
+      <button type="submit" class="auth-btn">Sign in →</button>
+    </form>
+
+    <form class="auth-form hidden" id="signUpForm">
+      <input type="text" class="auth-input" id="suName" placeholder="Your name" required autocomplete="name">
+      <input type="email" class="auth-input" id="suEmail" placeholder="Email" required autocomplete="email">
+      <input type="tel" class="auth-input" id="suPhone" placeholder="Phone number (e.g. +919876543210)" required>
+      <input type="password" class="auth-input" id="suPassword" placeholder="Password (min 8 characters)" required autocomplete="new-password">
+      <button type="submit" class="auth-btn">Create account →</button>
+    </form>
+
+    <form class="auth-form hidden" id="confirmForm">
+      <p class="auth-msg ok">Check your email for a confirmation code.</p>
+      <input type="text" class="auth-input" id="confirmCode" placeholder="Confirmation code" required>
+      <button type="submit" class="auth-btn">Confirm →</button>
+    </form>
+
+    <div class="auth-msg" id="authMsg"></div>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="appScreen" class="hidden">
+  <div class="app">
+
+    <div class="app-header">
+      <div>
+        <div class="app-title">Kharcha<span>.</span></div>
+        <div class="app-date" id="appDate"></div>
+      </div>
+      <button class="signout-btn" id="signOutBtn">Sign out</button>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">This month</div>
+        <div class="summary-value accent" id="monthTotal">₹0</div>
+        <div class="summary-sub" id="monthCount">0 expenses</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Today</div>
+        <div class="summary-value" id="todayTotal">₹0</div>
+        <div class="summary-sub" id="todayCount">0 expenses</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Top category</div>
+        <div class="summary-value amber" id="topCategory">—</div>
+        <div class="summary-sub" id="topCategoryAmt"></div>
+      </div>
+    </div>
+
+    <!-- CATEGORY BREAKDOWN -->
+    <div class="breakdown" id="breakdownSection" style="display:none;">
+      <div class="breakdown-title">Spending breakdown</div>
+      <div class="breakdown-bars" id="breakdownBars"></div>
+    </div>
+
+    <!-- ADD EXPENSE -->
+    <div class="add-card">
+      <div class="add-title">Add an expense</div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Amount (₹)</label>
+          <input type="number" class="form-input" id="expAmount" placeholder="e.g. 250" min="0" step="0.01">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="expDate">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:14px;">
+        <label class="form-label">Note (optional)</label>
+        <input type="text" class="form-input" id="expNote" placeholder="e.g. Lunch at office, Uber to airport...">
+      </div>
+      <div class="form-field" style="margin-bottom:16px;">
+        <label class="form-label">Category</label>
+        <div class="category-pills">
+          <button type="button" class="cat-pill" data-cat="Food">🍜 Food</button>
+          <button type="button" class="cat-pill" data-cat="Transport">🚗 Transport</button>
+          <button type="button" class="cat-pill" data-cat="Shopping">🛍️ Shopping</button>
+          <button type="button" class="cat-pill" data-cat="Bills">📄 Bills</button>
+          <button type="button" class="cat-pill" data-cat="Entertainment">🎬 Entertainment</button>
+          <button type="button" class="cat-pill" data-cat="Other">📦 Other</button>
+        </div>
+      </div>
+      <button class="add-btn" id="addBtn">+ Log expense</button>
+    </div>
+
+    <!-- EXPENSE LIST -->
+    <div class="list-header">
+      <div class="list-title">Recent expenses</div>
+      <div class="list-count" id="listCount"></div>
+    </div>
+    <div class="expense-list" id="expenseList"></div>
+
+  </div>
+</div>
+
+<script>
+  // ── CONFIG ──
+  const poolData = {
+    UserPoolId: "ap-south-1_uKco093Z0",
+    ClientId: "76h48cmqeqqhls3mvq2074iirf"
+  };
+  const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+  const { CognitoUser, AuthenticationDetails, CognitoUserAttribute } = AmazonCognitoIdentity;
+  const BASE_URL = "https://rrco8zbqcj.execute-api.ap-south-1.amazonaws.com";
+  const API_URL = BASE_URL + "/expenses";
+
+  let idToken = null;
+  let pendingEmail = null;
+  let selectedCategory = null;
+  let allExpenses = [];
+
+  // ── HELPERS ──
+  const el = id => document.getElementById(id);
+  const fmt = n => "₹" + parseFloat(n).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  const authHeaders = () => ({ "Content-Type": "application/json", "Authorization": idToken });
+
+  function showMsg(text, type) {
+    const m = el("authMsg");
+    m.textContent = text;
+    m.className = "auth-msg " + (type || "");
+  }
+
+  function celebrate() {
+    const c = el("celebration");
+    c.classList.add("show");
+    setTimeout(() => c.classList.remove("show"), 2500);
+  }
+
+  // ── DATE ──
+  el("appDate").textContent = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  el("expDate").value = todayStr();
+
+  // ── CATEGORY PILLS ──
+  document.querySelectorAll(".cat-pill").forEach(pill => {
+    pill.addEventListener("click", () => {
+      document.querySelectorAll(".cat-pill").forEach(p => p.classList.remove("selected"));
+      pill.classList.add("selected");
+      selectedCategory = pill.dataset.cat;
+    });
+  });
+
+  // ── CATEGORY COLORS ──
+  const catColors = {
+    Food: "var(--food)", Transport: "var(--transport)", Shopping: "var(--shopping)",
+    Bills: "var(--bills)", Entertainment: "var(--entertainment)", Other: "var(--other)"
+  };
+
+  // ── AUTH TABS ──
+  el("tabSignIn").addEventListener("click", () => {
+    el("tabSignIn").classList.add("active"); el("tabSignUp").classList.remove("active");
+    el("signInForm").classList.remove("hidden"); el("signUpForm").classList.add("hidden"); el("confirmForm").classList.add("hidden");
+    showMsg("");
+  });
+  el("tabSignUp").addEventListener("click", () => {
+    el("tabSignUp").classList.add("active"); el("tabSignIn").classList.remove("active");
+    el("signUpForm").classList.remove("hidden"); el("signInForm").classList.add("hidden"); el("confirmForm").classList.add("hidden");
+    showMsg("");
+  });
+
+  // ── SIGN UP ──
+  el("signUpForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = el("suName").value;
+    const email = el("suEmail").value;
+    const phone = el("suPhone").value;
+    const password = el("suPassword").value;
+    const attrs = [
+      new CognitoUserAttribute({ Name: "email", Value: email }),
+      new CognitoUserAttribute({ Name: "name", Value: name }),
+      new CognitoUserAttribute({ Name: "phone_number", Value: phone })
+    ];
+    userPool.signUp(email, password, attrs, null, (err) => {
+      if (err) { showMsg(err.message || "Could not sign up.", "error"); return; }
+      pendingEmail = email;
+      el("signUpForm").classList.add("hidden");
+      el("confirmForm").classList.remove("hidden");
+      showMsg("");
+    });
+  });
+
+  // ── CONFIRM ──
+  el("confirmForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const code = el("confirmCode").value;
+    const cognitoUser = new CognitoUser({ Username: pendingEmail, Pool: userPool });
+    cognitoUser.confirmRegistration(code, true, (err) => {
+      if (err) { showMsg(err.message || "Could not confirm.", "error"); return; }
+      showMsg("Account confirmed — sign in now!", "ok");
+      el("confirmForm").classList.add("hidden");
+      el("tabSignIn").click();
+    });
+  });
+
+  // ── SIGN IN ──
+  el("signInForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const email = el("siEmail").value;
+    const password = el("siPassword").value;
+    const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+    const cognitoUser = new CognitoUser({ Username: email, Pool: userPool });
+    cognitoUser.authenticateUser(authDetails, {
+      onSuccess: session => { idToken = session.getIdToken().getJwtToken(); showApp(); },
+      onFailure: err => showMsg(err.message || "Could not sign in.", "error")
+    });
+  });
+
+  // ── SIGN OUT ──
+  el("signOutBtn").addEventListener("click", () => {
+    const u = userPool.getCurrentUser();
+    if (u) u.signOut();
+    idToken = null;
+    el("appScreen").classList.add("hidden");
+    el("authScreen").classList.remove("hidden");
+  });
+
+  // ── SESSION CHECK ──
+  function checkSession() {
+    const u = userPool.getCurrentUser();
+    if (!u) return;
+    u.getSession((err, session) => {
+      if (err || !session.isValid()) return;
+      idToken = session.getIdToken().getJwtToken();
+      showApp();
+    });
+  }
+
+  function showApp() {
+    el("authScreen").classList.add("hidden");
+    el("appScreen").classList.remove("hidden");
+    loadExpenses();
+  }
+
+  // ── LOAD EXPENSES ──
+  async function loadExpenses() {
+    try {
+      const res = await fetch(API_URL, { headers: authHeaders() });
+      allExpenses = await res.json();
+      renderAll();
+    } catch (err) { console.error(err); }
+  }
+
+  // ── RENDER ALL ──
+  function renderAll() {
+    renderSummary();
+    renderBreakdown();
+    renderList();
+  }
+
+  // ── SUMMARY ──
+  function renderSummary() {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+    const today = todayStr();
+
+    const monthExp = allExpenses.filter(e => e.date && e.date.startsWith(thisMonth));
+    const todayExp = allExpenses.filter(e => e.date === today);
+    const monthTotal = monthExp.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const todayTotal = todayExp.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+    el("monthTotal").textContent = fmt(monthTotal);
+    el("monthCount").textContent = monthExp.length + " expense" + (monthExp.length !== 1 ? "s" : "");
+    el("todayTotal").textContent = fmt(todayTotal);
+    el("todayCount").textContent = todayExp.length + " expense" + (todayExp.length !== 1 ? "s" : "");
+
+    // Top category
+    const catTotals = {};
+    allExpenses.forEach(e => {
+      catTotals[e.category] = (catTotals[e.category] || 0) + parseFloat(e.amount || 0);
+    });
+    const top = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+    if (top) {
+      el("topCategory").textContent = top[0];
+      el("topCategoryAmt").textContent = fmt(top[1]) + " total";
+    } else {
+      el("topCategory").textContent = "—";
+      el("topCategoryAmt").textContent = "";
+    }
+  }
+
+  // ── BREAKDOWN ──
+  function renderBreakdown() {
+    const catTotals = {};
+    allExpenses.forEach(e => {
+      catTotals[e.category] = (catTotals[e.category] || 0) + parseFloat(e.amount || 0);
+    });
+    const entries = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) { el("breakdownSection").style.display = "none"; return; }
+    el("breakdownSection").style.display = "block";
+    const max = entries[0][1];
+    el("breakdownBars").innerHTML = entries.map(([cat, amt]) => `
+      <div class="breakdown-row">
+        <span class="breakdown-cat">${cat}</span>
+        <div class="breakdown-bar-wrap">
+          <div class="breakdown-bar" style="width:${(amt/max*100).toFixed(1)}%;background:${catColors[cat] || "var(--other)"}"></div>
+        </div>
+        <span class="breakdown-amt">${fmt(amt)}</span>
+      </div>
+    `).join("");
+  }
+
+  // ── LIST ──
+  function renderList() {
+    const list = el("expenseList");
+    el("listCount").textContent = allExpenses.length + " total";
+    if (allExpenses.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-emoji">🧾</div><div class="empty-text">No expenses yet</div><div class="empty-sub">Add your first expense above — it's quick!</div></div>`;
+      return;
+    }
+    list.innerHTML = allExpenses.map(e => `
+      <div class="expense-item" id="item-${e.expenseId}">
+        <div class="expense-cat-dot" style="background:${catColors[e.category] || "var(--other)"}"></div>
+        <div class="expense-info">
+          <div class="expense-note">${e.note || e.category}</div>
+          <div class="expense-meta">${e.category} · ${e.date || "—"}</div>
+        </div>
+        <div class="expense-amount">${fmt(e.amount)}</div>
+        <button class="expense-del" onclick="deleteExpense('${e.expenseId}')" title="Delete">✕</button>
+      </div>
+    `).join("");
+  }
+
+  // ── ADD EXPENSE ──
+  el("addBtn").addEventListener("click", async () => {
+    const amount = el("expAmount").value.trim();
+    const date = el("expDate").value;
+    const note = el("expNote").value.trim();
+    if (!amount || parseFloat(amount) <= 0) { alert("Please enter a valid amount."); return; }
+    if (!selectedCategory) { alert("Please select a category."); return; }
+    if (!date) { alert("Please pick a date."); return; }
+
+    const btn = el("addBtn");
+    btn.disabled = true; btn.textContent = "Logging...";
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ amount: parseFloat(amount), category: selectedCategory, date, note })
+      });
+      const expense = await res.json();
+      allExpenses.unshift(expense);
+      renderAll();
+      el("expAmount").value = "";
+      el("expNote").value = "";
+      el("expDate").value = todayStr();
+      document.querySelectorAll(".cat-pill").forEach(p => p.classList.remove("selected"));
+      selectedCategory = null;
+      celebrate();
+    } catch (err) { alert("Could not add expense. Try again."); }
+    finally { btn.disabled = false; btn.textContent = "+ Log expense"; }
+  });
+
+  // ── DELETE ──
+  window.deleteExpense = async function(expenseId) {
+    if (!confirm("Delete this expense?")) return;
+    try {
+      await fetch(API_URL, {
+        method: "DELETE",
+        headers: authHeaders(),
+        body: JSON.stringify({ expenseId })
+      });
+      allExpenses = allExpenses.filter(e => e.expenseId !== expenseId);
+      const item = document.getElementById("item-" + expenseId);
+      if (item) { item.style.opacity = "0"; item.style.transform = "translateX(20px)"; setTimeout(() => renderAll(), 250); }
+      else renderAll();
+    } catch (err) { alert("Could not delete. Try again."); }
+  };
+
+  checkSession();
+</script>
+</body>
+</html>
